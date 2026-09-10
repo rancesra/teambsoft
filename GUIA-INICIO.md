@@ -91,7 +91,34 @@ El `.\` es obligatorio en PowerShell: significa "el archivo que está en esta ca
 
 La primera vez tarda unos minutos, porque descarga Maven y las librerías. Debe terminar con `Tests run: 1, Failures: 0` y `BUILD SUCCESS`. Los mensajes `Connection refused` de MongoDB son normales: Mongo todavía no está corriendo.
 
-## 5. Antes de programar
+## 5. Levantar MongoDB y arrancar el servicio
+
+Docker Desktop tiene que estar abierto. Desde la carpeta `backend`:
+
+```powershell
+docker compose up -d
+docker compose ps
+```
+
+`docker compose up -d` levanta MongoDB 7.0 en un contenedor, en segundo plano. La primera vez descarga la imagen de Mongo, que pesa unos cientos de MB. `docker compose ps` debe mostrar el contenedor `catalogo-mongo` con estado `Up`.
+
+Luego arranca el servicio:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+Abre http://localhost:8080/actuator/health en el navegador. Debe decir `"status":"UP"`, y dentro de `components`, `mongo` también debe estar en `UP`.
+
+Para detener el servicio presiona `Ctrl + C`. Para apagar Mongo:
+
+```powershell
+docker compose down
+```
+
+Los datos se conservan. **No uses `docker compose down -v`**: la `-v` borra el volumen con todos los datos de Mongo.
+
+## 6. Antes de programar
 
 - Lee el [contrato](docs/CONTRATO-CATALOGO.md). Es el acuerdo con los otros equipos y no se cambia sin consultarlo.
 - Cada vez que vayas a trabajar, trae primero los cambios de tus compañeros:
