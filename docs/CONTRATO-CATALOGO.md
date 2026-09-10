@@ -1,6 +1,6 @@
 # Contrato de Servicio — Catálogo (Equipo B)
 
-**Versión:** 2.1 — Segunda entrega (Ciclo 2)
+**Versión:** 2.2 — Segunda entrega (Ciclo 2)
 **Fecha:** 2026-09-10
 **Equipo responsable:** Equipo B
 **Consumido por:** Equipo A (Búsqueda), Equipo C (Carrito)
@@ -165,7 +165,9 @@ El módulo "Catálogo" del Cliente Web (dentro del Host App) consume estos endpo
 | Crear producto (admin) | `POST /productos` | Formulario: nombre, descripción, precio, categoría, stock, imágenes |
 | Selector de categoría | `GET /categorias` | Dropdown para el formulario de creación |
 
-**Pendiente de decidir:** framework del micro-frontend (React, Angular, u otro) y cómo se integra al Host App (Module Federation u otro mecanismo) — depende de lo que acuerden los 3 equipos para que los módulos sean consistentes entre sí.
+**Framework:** Vue.js, acordado por los 3 equipos para todos los módulos del Host App, de modo que sean consistentes entre sí.
+
+**Pendiente de decidir:** cómo se integra cada módulo al Host App (Module Federation u otro mecanismo).
 
 No necesita ser un diseño elaborado: con que consuma los endpoints reales (nada de datos mockeados) y refleje los estados ya definidos (producto inactivo, error 404, etc.) alcanza para el nivel de esta entrega.
 
@@ -177,3 +179,4 @@ No necesita ser un diseño elaborado: con que consuma los endpoints reales (nada
 | 2026-08-20 | v1.1 — se agrega `GET /categorias` y modelo de Categoría |
 | 2026-08-21 | v2.0 — se reasigna a Segunda entrega (Ciclo 2); se agrega sección de Frontend |
 | 2026-09-10 | v2.1 — Aclaraciones compatibles con v2.0: parámetros de paginación de `GET /productos` (`pagina`, `tamanoPagina`); `?categoria=` inexistente devuelve lista vacía; `GET /productos/{id}` devuelve inactivos con `activo:false`; reglas de `PUT` (reemplazo completo, no cambia `id` ni `activo`) y de `DELETE` (idempotente); exchange `catalogo.eventos` y routing keys de los eventos; `stock` en el formulario de creación; variantes fuera de alcance |
+| 2026-09-10 | v2.2 — §9: el frontend se construye con Vue.js, acordado por los 3 equipos; sigue pendiente el mecanismo de integración con el Host App |
