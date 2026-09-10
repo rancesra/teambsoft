@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: catalogo
+  mongodb:
+    uri: mongodb://localhost:27017/catalogo
+
+server:
+  port: 8080
+
+management:
+  endpoint:
+    health:
+      show-details: always
