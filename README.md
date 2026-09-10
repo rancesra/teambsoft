@@ -54,6 +54,8 @@ cd backend
 En Windows usa `mvnw.cmd` en lugar de `./mvnw`.
 
 > Esta sección se irá actualizando a medida que se integren MongoDB, RabbitMQ, Eureka y Kong con Docker.
+>
+> ¿Eres del equipo y vas a empezar? Sigue la [guía de inicio](GUIA-INICIO.md).
 
 ## Estado — Segunda entrega
 
