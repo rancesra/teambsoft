@@ -1,10 +1,15 @@
+# Entorno de desarrollo. Se levanta con "docker compose up -d" desde la carpeta backend.
 services:
   mongo:
+    # Versión fijada: MongoDB 8 no arranca con el kernel actual de Docker Desktop (ver ARQUITECTURA §5).
     image: mongo:7.0
     container_name: catalogo-mongo
     ports:
+      # Solo accesible desde tu propio computador (127.0.0.1): en desarrollo, Mongo no tiene contraseña.
       - "127.0.0.1:27017:27017"
     volumes:
+      # Los datos viven en un volumen de Docker y sobreviven aunque se borre el contenedor.
+      # "docker compose down -v" borra el volumen, y con él todos los datos.
       - mongo-data:/data/db
 
 volumes:

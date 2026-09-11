@@ -5,6 +5,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import co.edu.uis.catalogo.service.ProductoService;
 
+/**
+ * Endpoints de productos (contrato, sección 2). El servicio expone {@code /productos}; el prefijo
+ * {@code /api/catalogo} lo agrega Kong.
+ *
+ * <p>Aquí no se manejan errores: el service lanza excepciones y
+ * {@link co.edu.uis.catalogo.error.ManejadorGlobalErrores} las convierte en el formato del contrato.
+ */
 @RestController
 @RequestMapping("/productos")
 public class ProductoController {

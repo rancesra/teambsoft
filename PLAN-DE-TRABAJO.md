@@ -19,8 +19,8 @@ La fuente de verdad es el [contrato](docs/CONTRATO-CATALOGO.md). Si algo de este
 | **B3** Lectura y borrado | _Nombre_ | `GET /productos`, `GET /productos/{id}`, `DELETE /productos/{id}` | 2, 3, 5 | B1 |
 | **B4** Infraestructura y eventos | _Nombre_ | RabbitMQ, Docker, Eureka, Kong, Swagger | — | B1; los eventos, también B2 y B3 |
 | **F1** Base del frontend | _Nombre_ | Proyecto Vue, rutas, cliente HTTP, errores | — | — |
-| **F2** Vistas de lectura | _Nombre_ | Listado y detalle | 2, 3 | F1 |
-| **F3** Vistas de administración | _Nombre_ | Crear, editar y desactivar | 1, 4, 5 | F1 |
+| **F2** Vistas de lectura | _Nombre_ | Listado y detalle | 2, 3 | F1; para datos reales, B3 |
+| **F3** Vistas de administración | _Nombre_ | Crear, editar y desactivar | 1, 4, 5 | F1; para datos reales, B2 y B3 |
 
 ## Orden de trabajo
 
@@ -35,10 +35,26 @@ graph LR
     F1 --> F3[F3 Administración]
 ```
 
-1. **B1 va primero y solo.** Mientras B1 no esté en `main`, B2, B3 y B4 preparan su computador con la guía de inicio y leen el contrato.
-2. **Con B1 en `main`, B2, B3 y B4 trabajan en paralelo**, cada uno en su rama.
+1. **B1 ya está en `main`** (pull request #1): era la base de todo lo demás.
+2. **B2, B3 y B4 trabajan en paralelo**, cada uno en su rama.
 3. **B4 conecta los eventos al final**, cuando B2 y B3 ya estén en `main`, porque los eventos se publican desde las operaciones que ellos programan.
 4. **El frontend puede empezar ya.** F1 no depende del backend. Para la entrega, las vistas deben usar los endpoints reales, sin datos inventados (contrato §9). Mientras B2 y B3 terminan, `GET /categorias` ya funciona.
+
+### ¿Quién depende de quién?
+
+| Tarea | Puede empezar | Espera a | Quién la espera |
+|---|---|---|---|
+| B1 | ✅ Terminada | — | B2, B3 y B4 |
+| B2 | Ya | Nadie | B4 (eventos) y F3 (para usar datos reales) |
+| B3 | Ya | Nadie | B4 (eventos), F2 y F3 (para usar datos reales) |
+| B4: Docker, Eureka, Kong, Swagger | Ya | Nadie | Nadie |
+| B4: eventos | Cuando B2 y B3 estén en `main` | B2 y B3 | Nadie |
+| F1 | Ya | Nadie | F2 y F3 |
+| F2 | Cuando F1 esté en `main` | F1 (y B3 para datos reales) | Nadie |
+| F3 | Cuando F1 esté en `main` | F1 (y B2 y B3 para datos reales) | Nadie |
+
+- **B2 y B3 no se esperan entre sí,** pero los dos agregan métodos a `ProductoService` y `ProductoController`. Quien una su PR de segundo tendrá que resolver un conflicto sencillo (ver la sección 7 de la [guía de git](GUIA-GIT.md)).
+- **"Para datos reales"** significa que el frontend puede construir la vista antes, pero solo la termina cuando el endpoint que usa ya está en `main`.
 
 ## Cómo trabajamos con git
 
@@ -97,11 +113,13 @@ git merge main
 - **Mongo tiene que estar encendido** para correr la app y las pruebas: la carga de categorías escribe en Mongo al arrancar.
 - **Para probar endpoints** en Windows, usa la extensión **REST Client** de VS Code con archivos `.http`. Así evitas los problemas de comillas de `curl` en PowerShell.
 - **Pruebas automáticas:** `ManejadorGlobalErroresTest` (en `backend/src/test`) es un ejemplo de cómo probar la capa web con `@WebMvcTest` y `MockMvc`, sin necesidad de Mongo.
+- **Documentación del código:** cada clase lleva un Javadoc (`/** ... */`) que explica qué papel cumple, y cada método no evidente dice qué regla del contrato aplica. No comentes lo obvio (getters, asignaciones). Si cambias un código, actualiza su comentario: uno desactualizado confunde más que ninguno. El código de B1 sirve de ejemplo.
 
 ## Definición de terminado (tareas de backend)
 
 - [ ] Compila y `.\mvnw.cmd test` pasa (con Mongo encendido)
 - [ ] Probado contra el contrato: mismos campos, códigos de estado y errores
+- [ ] Clases y métodos nuevos documentados (ver "Documentación del código" en las convenciones)
 - [ ] Casilla de la historia marcada en el README
 - [ ] PR revisado por otro integrante y unido a `main`
 
@@ -109,7 +127,7 @@ git merge main
 
 ## B1 — Base del proyecto
 
-**Responsable:** Rances · **Rama:** `b1-base` · **Estado:** terminado, en revisión (pull request)
+**Responsable:** Rances · **Rama:** `b1-base` · **Estado:** ✅ terminado, en `main` desde el pull request #1
 
 - [x] Esqueleto (Spring Boot 4.1.1, Java 21)
 - [x] Conexión a MongoDB 7.0 con Docker Compose
@@ -122,6 +140,7 @@ git merge main
   - `ProductoResponse`, con los campos del contrato §3
   - `ProductoService`, con los repositorios ya inyectados y `buscarExistente(id)`, que lanza el 404 si el producto no existe
   - `ProductoController`, vacío, en `/productos`
+- [x] Código documentado con Javadoc: qué hace cada clase y qué regla del contrato aplica cada método
 
 ## B2 — Escritura (Historias 1 y 4)
 
@@ -183,6 +202,7 @@ En Mongo (`db.productos.findOne()`), el precio debe verse como `Decimal128('...'
 - Validar los parámetros con `@Min` y `@Max` en los `@RequestParam`, con el mensaje en español (`@Min(value = 1, message = "...")`). El manejador de B1 convierte esos errores en `VALIDACION_FALLIDA`.
 - **No** pongas `@Validated` en la clase del controller: cambia el tipo de excepción que lanza Spring, el manejador no la atraparía y el cliente recibiría un 500 en lugar de un 400.
 - `GET /productos/{id}`: usa `buscarExistente(id)`, que ya lanza el 404 si no existe.
+- **Para probar sin esperar el POST de B2**, crea productos a mano en Mongo. Entra a la consola con `docker exec -it catalogo-mongo mongosh catalogo` y escribe, por ejemplo: `db.productos.insertOne({nombre: "Camiseta", precio: NumberDecimal("49900"), categoria: "cat-ropa", stock: 10, imagenes: [], activo: true})`. Sal con `exit`.
 - `DELETE`: busca con `buscarExistente(id)` y usa `producto.desactivar()`. Si ya estaba inactivo, responde 204 sin cambiar nada. B4 necesita saber si hubo un cambio para no publicar el evento dos veces.
 
 **Cómo verificar**
