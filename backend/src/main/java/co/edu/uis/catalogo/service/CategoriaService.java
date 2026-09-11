@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import co.edu.uis.catalogo.dto.CategoriaResponse;
 import co.edu.uis.catalogo.repository.CategoriaRepository;
 
+/** Lógica de negocio de las categorías. En esta entrega solo las lista (Historia 6). */
 @Service
 public class CategoriaService {
 
@@ -16,6 +17,7 @@ public class CategoriaService {
 		this.categoriaRepository = categoriaRepository;
 	}
 
+	/** Devuelve todas las categorías en el formato de la API. */
 	public List<CategoriaResponse> listar() {
 		return categoriaRepository.findAll().stream()
 				.map(CategoriaResponse::desde)

@@ -22,10 +22,22 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
+/**
+ * Comprueba que {@link ManejadorGlobalErrores} responde con el formato de error del contrato
+ * (sección 4) para cada tipo de error.
+ *
+ * <p>Todavía no hay endpoints de productos que fallen, así que se usa {@link ControladorDePrueba}, un
+ * controller que solo existe en esta prueba y provoca cada error a propósito.
+ *
+ * <p>{@code @WebMvcTest} carga solo la capa web, sin MongoDB, y por eso es rápida. El controller de
+ * prueba se registra con {@code @Import} porque Spring Boot ignora las clases definidas dentro de una
+ * prueba cuando busca componentes.
+ */
 @WebMvcTest(controllers = ManejadorGlobalErroresTest.ControladorDePrueba.class)
 @Import(ManejadorGlobalErroresTest.ControladorDePrueba.class)
 class ManejadorGlobalErroresTest {
 
+	// En las pruebas se inyecta en el campo: la clase de prueba la crea JUnit, no Spring.
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -80,6 +92,7 @@ class ManejadorGlobalErroresTest {
 				.andExpect(jsonPath("$.mensaje").value("El parámetro 'pagina' tiene un valor inválido"));
 	}
 
+	/** Controller que solo existe en esta prueba: cada endpoint provoca un tipo de error distinto. */
 	@RestController
 	@RequestMapping("/prueba")
 	static class ControladorDePrueba {
@@ -104,6 +117,10 @@ class ManejadorGlobalErroresTest {
 
 	}
 
+	/**
+	 * Cuerpo de ejemplo con una validación. El mensaje va fijo en español para que la prueba no dependa
+	 * del idioma de quien la ejecuta.
+	 */
 	record DatosDePrueba(@NotBlank(message = "es obligatorio") String nombre) {
 	}
 
