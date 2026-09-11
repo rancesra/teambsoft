@@ -3,6 +3,11 @@ spring:
     name: catalogo
   mongodb:
     uri: mongodb://localhost:27017/catalogo
+  data:
+    mongodb:
+      auto-index-creation: true
+      representation:
+        big-decimal: decimal128
 
 server:
   port: 8080
