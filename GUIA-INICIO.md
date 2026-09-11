@@ -62,6 +62,13 @@ git config --global user.name "Tu Nombre"
 git config --global user.email "tu-correo@ejemplo.com"
 ```
 
+Y dos ajustes que evitan problemas al trabajar en equipo (la [guía de git](GUIA-GIT.md) explica para qué sirve cada uno):
+
+```powershell
+git config --global pull.rebase false
+git config --global core.editor "code --wait"
+```
+
 No tienes que iniciar sesión en GitHub ahora. La primera vez que hagas `git push` se abrirá el navegador para que autorices tu cuenta. Usa la misma cuenta con la que aceptaste la invitación.
 
 ## 3. Clonar el repositorio
@@ -78,26 +85,46 @@ code .
 
 `code .` abre la carpeta del proyecto en VS Code.
 
-## 4. Verificar que el backend compila
+## 4. Levantar MongoDB
 
-En VS Code abre una terminal (menú **Terminal → New Terminal**) y ejecuta:
+Abre Docker Desktop y espera a que diga que está corriendo. Luego, en VS Code, abre una terminal (menú **Terminal → New Terminal**) y ejecuta:
 
 ```powershell
 cd backend
+docker compose up -d
+docker compose ps
+```
+
+`docker compose up -d` levanta MongoDB 7.0 en un contenedor, en segundo plano. La primera vez descarga la imagen de Mongo, que pesa unos cientos de MB. `docker compose ps` debe mostrar el contenedor `catalogo-mongo` con estado `Up`.
+
+## 5. Verificar que el backend funciona
+
+Con Mongo encendido, desde la carpeta `backend`:
+
+```powershell
 .\mvnw.cmd test
 ```
 
-El `.\` es obligatorio en PowerShell: significa "el archivo que está en esta carpeta".
+El `.\` es obligatorio en PowerShell: significa "el archivo que está en esta carpeta". La primera vez tarda unos minutos, porque descarga Maven y las librerías. Debe terminar con `BUILD SUCCESS` y sin pruebas fallidas (`Failures: 0, Errors: 0`). Las pruebas necesitan Mongo porque, al arrancar, la aplicación guarda las categorías en la base de datos.
 
-La primera vez tarda unos minutos, porque descarga Maven y las librerías. Debe terminar con `Tests run: 1, Failures: 0` y `BUILD SUCCESS`. Los mensajes `Connection refused` de MongoDB son normales: Mongo todavía no está corriendo.
-
-## 5. Antes de programar
-
-- Lee el [contrato](docs/CONTRATO-CATALOGO.md). Es el acuerdo con los otros equipos y no se cambia sin consultarlo.
-- Cada vez que vayas a trabajar, trae primero los cambios de tus compañeros:
+Luego arranca el servicio:
 
 ```powershell
-git pull
+.\mvnw.cmd spring-boot:run
 ```
 
-- **Flujo de trabajo en equipo (ramas y pull requests):** por definir.
+Abre http://localhost:8080/actuator/health en el navegador. Debe decir `"status":"UP"`, y dentro de `components`, `mongo` también debe estar en `UP`. En http://localhost:8080/categorias deben aparecer las tres categorías.
+
+Para detener el servicio presiona `Ctrl + C`. Para apagar Mongo:
+
+```powershell
+docker compose down
+```
+
+Los datos se conservan. **No uses `docker compose down -v`**: la `-v` borra el volumen con todos los datos de Mongo.
+
+## 6. Antes de programar
+
+1. Lee el [contrato](docs/CONTRATO-CATALOGO.md). Es el acuerdo con los otros equipos y no se cambia sin consultarlo.
+2. Busca tu tarea en el [plan de trabajo](PLAN-DE-TRABAJO.md).
+3. Lee la [guía de git](GUIA-GIT.md): cómo crear tu rama, qué hacer cada día y cómo entregar tu tarea con un pull request.
