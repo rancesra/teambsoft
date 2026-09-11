@@ -52,7 +52,7 @@ graph TD
 
 ## 0. Configuración única (una vez por computador)
 
-Además del nombre y el correo que configuraste con la guía de inicio, ejecuta:
+Si seguiste la [guía de inicio](GUIA-INICIO.md), ya lo hiciste. Si no, además del nombre y el correo, ejecuta:
 
 ```powershell
 git config --global pull.rebase false

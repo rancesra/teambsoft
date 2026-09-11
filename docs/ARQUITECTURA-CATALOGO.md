@@ -1,8 +1,8 @@
 # Arquitectura — Catálogo (Equipo B)
 
 **Entrega:** Primera entrega — Ciclo 1 (actualizado en Ciclo 2)
-**Versión:** 1.1
-**Fecha:** 2026-09-10
+**Versión:** 1.2
+**Fecha:** 2026-09-11
 
 ## 1. Rol en el sistema
 
@@ -23,16 +23,35 @@ Catálogo es uno de los 5 microservicios del sistema (junto a Búsqueda, Carro, 
 
 ```mermaid
 graph TD
-    Kong[Kong API Gateway] -->|REST| Controller[ProductoController]
-    Controller --> Service[ProductoService]
-    Service --> Repository[ProductoRepository]
-    Repository --> Mongo[(MongoDB)]
-    Service --> Publisher[EventPublisher]
+    Kong[Kong API Gateway] -->|REST| PC[ProductoController]
+    Kong -->|REST| CC[CategoriaController]
+    PC --> PS[ProductoService]
+    CC --> CS[CategoriaService]
+    PS --> PR[ProductoRepository]
+    PS --> CR[CategoriaRepository]
+    CS --> CR
+    PR --> Mongo[(MongoDB)]
+    CR --> Mongo
+    Carga[CargaCategorias] -.->|al arrancar| CR
+    PS --> Publisher[EventPublisher]
     Publisher -->|eventos| RabbitMQ[RabbitMQ Event Bus]
-    Controller -.->|se registra al iniciar| Eureka[Eureka]
+    Errores[ManejadorGlobalErrores] -.->|traduce las excepciones| PC
+    Errores -.-> CC
 ```
 
-Capas: **Controller** expone los endpoints REST y valida entrada; **Service** contiene la lógica de negocio (validaciones, reglas de soft delete); **Repository** es la interfaz de Spring Data hacia MongoDB; **EventPublisher** emite los eventos de dominio después de cada operación de escritura exitosa.
+Capas:
+
+- **Controller** expone los endpoints REST, valida la entrada y convierte entre HTTP y DTOs.
+- **Service** contiene la lógica de negocio: las reglas del contrato, el 404 cuando un producto no existe y el soft delete.
+- **Repository** es la interfaz de Spring Data hacia MongoDB.
+- **EventPublisher** emitirá los eventos de dominio después de cada escritura exitosa (tarea B4, en construcción).
+
+Además:
+
+- Los **DTOs** (`ProductoResponse`, `CategoriaResponse` y, con B2, `ProductoRequest`) definen lo que entra y sale por la API, separados de las entidades que se guardan en Mongo.
+- **ManejadorGlobalErrores** (`@RestControllerAdvice`) atrapa las excepciones de cualquier capa y responde con el formato de error del contrato (§4). Los controllers y services solo lanzan excepciones.
+- **CargaCategorias** guarda las categorías del contrato cada vez que arranca el servicio.
+- El servicio se registra en **Eureka** al arrancar (tarea B4).
 
 > Nota: este diagrama se renderiza automáticamente al ver el archivo en GitHub (soporta Mermaid de forma nativa en Markdown).
 
@@ -48,6 +67,10 @@ Producto y Categoría, con sus campos y reglas de validación, están definidos 
 - **Eventos hacia Búsqueda, llamada síncrona para Carro:** Búsqueda no necesita el dato al instante y vive bien con un índice eventualmente consistente; Carro sí necesita confirmar en el momento antes de dejar continuar al usuario.
 - **Errores con código, no solo texto:** permite que cualquier consumidor reaccione programáticamente sin parsear mensajes.
 - **MongoDB 7.0 y no 8.x, con versión fijada:** MongoDB 8 no arranca con los kernels Linux 6.19 a 7.0.13. Un cambio del kernel afectó su administrador de memoria, y MongoDB decidió bloquear el arranque para evitar caídas y posible corrupción de datos. Docker Desktop en macOS usa hoy una máquina virtual con kernel 7.0.12, así que la 8 no arranca en el equipo de uno de los integrantes. Según la matriz de compatibilidad oficial de MongoDB (ticket SERVER-125742), la 7.0 funciona con cualquier kernel. Fijar `mongo:7.0` en `docker-compose.yml`, en vez de usar `latest`, garantiza que todo el equipo use la misma versión en Mac y en Windows. Para Catálogo no hay diferencia funcional; se puede volver a la 8 cuando Docker Desktop traiga un kernel 7.0.14 o superior.
+- **Errores centralizados con el formato del contrato, no ProblemDetail:** un único `@RestControllerAdvice` traduce a `{codigo, mensaje}` tanto nuestras excepciones como las de validación de Spring (cuerpo, parámetros, tipos y JSON mal formado). Spring ofrece ProblemDetail (RFC 9457) como formato estándar, pero el formato ya estaba acordado con los equipos A y C. Los errores que el contrato no contempla (fallas inesperadas, rutas inexistentes) usan el formato por defecto de Spring.
+- **Precio como `BigDecimal`, guardado como `Decimal128`:** `double` introduce errores de redondeo con dinero y `long` no admite decimales. Guardarlo como texto impediría comparar u ordenar por precio en Mongo. Desde Spring Data MongoDB 5.0 no hay una representación por defecto para `BigDecimal`, así que se configura explícitamente en `application.yml`.
+- **Entidades sin setters y DTOs separados:** `Producto` solo cambia con su constructor (POST), `actualizar(...)` (PUT) y `desactivar()` (DELETE). Así, las reglas del contrato (PUT no toca `id` ni `activo`; solo DELETE cambia `activo`) quedan en el código y no solo en el documento. La API nunca expone las entidades, sino DTOs, para que un cambio en la base de datos no cambie el contrato sin querer.
+- **Categorías precargadas desde el código, de forma idempotente:** se guardan al arrancar con ids fijos, así que repetir el arranque no crea duplicados. Se descartó un script de Mongo en Docker porque solo se ejecuta cuando el volumen está vacío.
 
 ## 6. Documentos relacionados
 
@@ -60,3 +83,4 @@ Producto y Categoría, con sus campos y reglas de validación, están definidos 
 |---|---|
 | 2026-08-21 | v1.0 — versión inicial (Primera entrega) |
 | 2026-09-10 | v1.1 — Se fijan las versiones del stack (Spring Boot 4.1.1 con Java 21, MongoDB 7.0) y se documenta por qué MongoDB 7.0 y no 8.x |
+| 2026-09-11 | v1.2 — La arquitectura interna refleja lo construido en B1 (categorías, DTOs, manejador global de errores y carga de categorías). Nuevas decisiones: formato de errores, precio como Decimal128, entidades sin setters y carga idempotente de categorías |

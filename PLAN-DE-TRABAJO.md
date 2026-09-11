@@ -96,6 +96,7 @@ git merge main
 - **Precio (`BigDecimal`):** compáralo con `compareTo`, no con `equals` (`49900` y `49900.00` no son `equals`).
 - **Mongo tiene que estar encendido** para correr la app y las pruebas: la carga de categorías escribe en Mongo al arrancar.
 - **Para probar endpoints** en Windows, usa la extensión **REST Client** de VS Code con archivos `.http`. Así evitas los problemas de comillas de `curl` en PowerShell.
+- **Pruebas automáticas:** `ManejadorGlobalErroresTest` (en `backend/src/test`) es un ejemplo de cómo probar la capa web con `@WebMvcTest` y `MockMvc`, sin necesidad de Mongo.
 
 ## Definición de terminado (tareas de backend)
 
@@ -108,19 +109,19 @@ git merge main
 
 ## B1 — Base del proyecto
 
-**Responsable:** Rances · **Rama:** `b1-base` · **Estado:** en curso
+**Responsable:** Rances · **Rama:** `b1-base` · **Estado:** terminado, en revisión (pull request)
 
 - [x] Esqueleto (Spring Boot 4.1.1, Java 21)
 - [x] Conexión a MongoDB 7.0 con Docker Compose
 - [x] Modelos `Producto` y `Categoria` con sus repositorios
 - [x] Carga de categorías + Historia 6 (`GET /categorias`)
-- [ ] Manejo global de errores `{codigo, mensaje}`:
-  - `VALIDACION_FALLIDA` (400): errores de validación del cuerpo (B2), de los parámetros (B3) y JSON mal formado
-  - `PRODUCTO_NO_ENCONTRADO` (404)
-- [ ] Piezas compartidas, para que B2 y B3 no creen los mismos archivos al mismo tiempo:
-  - `ProductoResponse` con los campos del contrato §3
-  - `ProductoService` y `ProductoController` vacíos; B2 y B3 solo les agregan métodos
-  - Las excepciones `ProductoNoEncontradoException` y `ValidacionFallidaException`
+- [x] Manejo global de errores `{codigo, mensaje}` (`ManejadorGlobalErrores`), con sus pruebas:
+  - `VALIDACION_FALLIDA` (400): validación del cuerpo y de los parámetros, tipos incorrectos, JSON mal formado y `ValidacionFallidaException`
+  - `PRODUCTO_NO_ENCONTRADO` (404): `ProductoNoEncontradoException`
+- [x] Piezas compartidas, para que B2 y B3 no creen los mismos archivos al mismo tiempo:
+  - `ProductoResponse`, con los campos del contrato §3
+  - `ProductoService`, con los repositorios ya inyectados y `buscarExistente(id)`, que lanza el 404 si el producto no existe
+  - `ProductoController`, vacío, en `/productos`
 
 ## B2 — Escritura (Historias 1 y 4)
 
@@ -143,10 +144,11 @@ git merge main
   | `stock` | `@NotNull`, `@PositiveOrZero` |
   | `descripcion`, `imagenes` | Opcionales |
 
+- **Escribe el mensaje de cada validación en español**, por ejemplo `@NotBlank(message = "es obligatorio")`. Si no lo haces, el mensaje sale en el idioma que pida el cliente, y el mismo error puede llegar en español a un navegador y en inglés a otro programa.
 - `ProductoRequest` **no tiene `id` ni `activo`**: si el cliente los envía, se ignoran solos (contrato §2).
-- **Categoría existente:** se valida en `ProductoService` con `CategoriaRepository.existsById(...)`. Si no existe es `VALIDACION_FALLIDA` (400), **no** 404.
+- **Categoría existente:** se valida en `ProductoService` con `categoriaRepository.existsById(...)`. Si no existe, lanza `ValidacionFallidaException` (400), **no** 404.
 - **POST:** `new Producto(...)`; el producto nace activo.
-- **PUT:** `producto.actualizar(...)`. Sobre un producto inactivo responde 200 y sigue inactivo. Si el id no existe → `PRODUCTO_NO_ENCONTRADO`.
+- **PUT:** busca el producto con `buscarExistente(id)`, que ya lanza el 404 si no existe, y llama a `producto.actualizar(...)`. Sobre un producto inactivo responde 200 y sigue inactivo.
 
 **Cómo verificar**
 
@@ -178,9 +180,10 @@ En Mongo (`db.productos.findOne()`), el precio debe verse como `Decimal128('...'
 - En el repositorio, métodos derivados con `Pageable`, por ejemplo `findByActivoTrue(Pageable)` y `findByActivoTrueAndCategoria(String, Pageable)`. Spring Data genera la consulta a partir del nombre del método.
 - **La página 1 del contrato es la página 0 de Spring Data:** `PageRequest.of(pagina - 1, tamanoPagina)`.
 - Definir un **orden fijo** (por ejemplo, por `id`) para que las páginas no se mezclen entre una consulta y otra.
-- Validar los parámetros con `@Min` y `@Max` en los `@RequestParam`; el manejador de B1 convierte esos errores en `VALIDACION_FALLIDA`.
-- `GET /productos/{id}`: si no existe, lanzar `ProductoNoEncontradoException`.
-- `DELETE`: usar `producto.desactivar()`. Si ya estaba inactivo, responde 204 sin cambiar nada. B4 necesita saber si hubo un cambio para no publicar el evento dos veces.
+- Validar los parámetros con `@Min` y `@Max` en los `@RequestParam`, con el mensaje en español (`@Min(value = 1, message = "...")`). El manejador de B1 convierte esos errores en `VALIDACION_FALLIDA`.
+- **No** pongas `@Validated` en la clase del controller: cambia el tipo de excepción que lanza Spring, el manejador no la atraparía y el cliente recibiría un 500 en lugar de un 400.
+- `GET /productos/{id}`: usa `buscarExistente(id)`, que ya lanza el 404 si no existe.
+- `DELETE`: busca con `buscarExistente(id)` y usa `producto.desactivar()`. Si ya estaba inactivo, responde 204 sin cambiar nada. B4 necesita saber si hubo un cambio para no publicar el evento dos veces.
 
 **Cómo verificar**
 
