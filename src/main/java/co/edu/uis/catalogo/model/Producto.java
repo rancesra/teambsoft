@@ -83,6 +83,14 @@ public class Producto {
 		this.activo = false;
 	}
 
+	/**
+	 * Vuelve a poner el producto en el catálogo (contrato v2.3, sección 2). Es la operación inversa de
+	 * {@link #desactivar}: no toca ningún otro dato. Llamarla sobre un producto ya activo no cambia nada.
+	 */
+	public void activar() {
+		this.activo = true;
+	}
+
 	/** Compartido por el constructor y {@link #actualizar}, para no repetir las mismas asignaciones. */
 	private void asignarDatos(String nombre, String descripcion, BigDecimal precio, String categoria, int stock,
 			List<String> imagenes) {
