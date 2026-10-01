@@ -32,6 +32,7 @@ public class ManejadorGlobalErrores {
 	/** Códigos de error del contrato (sección 4). */
 	private static final String PRODUCTO_NO_ENCONTRADO = "PRODUCTO_NO_ENCONTRADO";
 	private static final String VALIDACION_FALLIDA = "VALIDACION_FALLIDA";
+	private static final String STOCK_INSUFICIENTE = "STOCK_INSUFICIENTE";
 
 	/** 404: se pidió un producto que no existe. */
 	@ExceptionHandler(ProductoNoEncontradoException.class)
@@ -45,6 +46,15 @@ public class ManejadorGlobalErrores {
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	public ErrorResponse validacionFallida(ValidacionFallidaException e) {
 		return new ErrorResponse(VALIDACION_FALLIDA, e.getMessage());
+	}
+
+	/**
+	 * 409: stock insuficiente para descontar. No es error de formato, es conflicto con el estado actual.
+	 */
+	@ExceptionHandler(StockInsuficienteException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponse stockInsuficiente(StockInsuficienteException e) {
+		return new ErrorResponse(STOCK_INSUFICIENTE, e.getMessage());
 	}
 
 	/**
