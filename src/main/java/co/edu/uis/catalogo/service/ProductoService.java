@@ -5,10 +5,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import co.edu.uis.catalogo.dto.DescuentoStockRequest;
 import co.edu.uis.catalogo.dto.DescuentoStockResponse;
+import co.edu.uis.catalogo.dto.ProductoListadoResponse;
 import co.edu.uis.catalogo.dto.ProductoRequest;
 import co.edu.uis.catalogo.dto.ProductoResponse;
 import co.edu.uis.catalogo.error.ProductoNoEncontradoException;
@@ -26,6 +30,9 @@ import co.edu.uis.catalogo.repository.ProductoStockRepository;
 @Service
 public class ProductoService {
 
+	/** Valor de {@code ?activo=} que trae los productos sin importar su estado. */
+	private static final String TODOS = "todos";
+
 	private final ProductoRepository productoRepository;
 
 	/** Para validar que la categoría de un producto exista (B2). */
@@ -39,6 +46,74 @@ public class ProductoService {
 		this.productoRepository = productoRepository;
 		this.categoriaRepository = categoriaRepository;
 		this.productoStockRepository = productoStockRepository;
+	}
+
+	/**
+	 * GET /productos: una página de productos, con filtro opcional por categoría y por estado
+	 * (Historias 2 y 8).
+	 *
+	 * @param pagina la primera página es la 1, como en el contrato.
+	 * @param categoria id de categoría, o {@code null} o vacío para no filtrar.
+	 * @param activo {@code true}, {@code false} o {@code "todos"}.
+	 */
+	public ProductoListadoResponse listar(int pagina, int tamanoPagina, String categoria, String activo) {
+		validarFiltroActivo(activo);
+
+		// PageRequest cuenta desde 0 y el contrato desde 1: aquí se hace la resta, una sola vez.
+		Pageable paginado = PageRequest.of(pagina - 1, tamanoPagina);
+
+		return ProductoListadoResponse.desde(buscarSegunFiltros(categoria, activo, paginado),
+				pagina, tamanoPagina);
+	}
+
+	/** Elige el método del repositorio según los filtros que hayan llegado. */
+	private Page<Producto> buscarSegunFiltros(String categoria, String activo, Pageable paginado) {
+		boolean todos = TODOS.equals(activo);
+		boolean soloActivos = Boolean.parseBoolean(activo);
+		boolean filtrarCategoria = (categoria != null) && !categoria.isBlank();
+
+		if (!filtrarCategoria) {
+			return todos ? productoRepository.findAll(paginado)
+					: (soloActivos ? productoRepository.findByActivoTrue(paginado)
+							: productoRepository.findByActivoFalse(paginado));
+		}
+
+		return todos ? productoRepository.findByCategoria(categoria, paginado)
+				: (soloActivos ? productoRepository.findByActivoTrueAndCategoria(categoria, paginado)
+						: productoRepository.findByActivoFalseAndCategoria(categoria, paginado));
+	}
+
+	/**
+	 * El parámetro solo acepta tres valores. Se valida aquí y no con una anotación porque el mensaje
+	 * de error tiene que nombrar los tres, y eso es más claro escrito que en una expresión regular.
+	 */
+	private void validarFiltroActivo(String activo) {
+		if (!TODOS.equals(activo) && !"true".equals(activo) && !"false".equals(activo)) {
+			throw new ValidacionFallidaException("activo: debe ser true, false o todos");
+		}
+	}
+
+	/** GET /productos/{id}: devuelve el producto aunque esté inactivo (Historia 3). */
+	public ProductoResponse obtenerPorId(String id) {
+		return ProductoResponse.desde(buscarExistente(id));
+	}
+
+	/**
+	 * DELETE: soft delete (Historia 5). Es idempotente: si ya estaba inactivo no guarda nada, y así
+	 * tampoco se publica otro evento cuando B4 los conecte.
+	 *
+	 * @return {@code true} si estaba activo y se desactivó; {@code false} si ya estaba inactivo.
+	 */
+	public boolean desactivar(String id) {
+		Producto producto = buscarExistente(id);
+
+		if (!producto.isActivo()) {
+			return false;
+		}
+
+		producto.desactivar();
+		productoRepository.save(producto);
+		return true;
 	}
 
 	/** POST: crea un producto. Nace activo y MongoDB le asigna el id al guardarlo (Historia 1). */
